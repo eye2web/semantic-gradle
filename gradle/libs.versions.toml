@@ -1,0 +1,9 @@
+[versions]
+apacheCommonsCollections4 = { strictly = "4.4" }
+
+[libraries]
+apacheCommonsCollections4 = { group = "org.apache.commons", name = "commons-collections4", version.ref = "apacheCommonsCollections4" }
+
+[bundles]
+
+[plugins]

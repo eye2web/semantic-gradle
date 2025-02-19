@@ -1,0 +1,17 @@
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+.idea
+.classpath
+.project
+.settings
+tmp
+.settings/
+*.log
+
+# System Files
+.DS_Store
+Thumbs.db
