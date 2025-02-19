@@ -22,7 +22,7 @@ gradlePlugin {
         }
 
         register("SemanticGradleBuildConfigurationPlugin") {
-            id = "nl.eye2web.semantic.gradle.build.configuration"
+            id = "nl.eye2web.semantic.gradle.build.config"
             implementationClass =
                 "nl.eye2web.semantic.gradle.build.configuration.SemanticGradleBuildConfigurationPlugin"
         }

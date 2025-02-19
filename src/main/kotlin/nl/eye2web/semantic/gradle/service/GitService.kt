@@ -6,6 +6,7 @@ import org.eclipse.jgit.lib.ObjectId
 import org.eclipse.jgit.lib.Ref
 import org.eclipse.jgit.lib.Repository
 import org.eclipse.jgit.revwalk.RevCommit
+import org.eclipse.jgit.revwalk.RevObject
 import org.eclipse.jgit.revwalk.RevWalk
 import java.io.File
 import java.util.stream.StreamSupport.*
@@ -13,8 +14,11 @@ import java.util.stream.StreamSupport.*
 class GitService {
 
     fun openGitRepo(girRepoDir: File): Repository {
-        val git = Git.open(girRepoDir)
-        return git.repository
+        return openGit(girRepoDir).repository
+    }
+
+    fun openGit(girRepoDir: File): Git {
+        return Git.open(girRepoDir)
     }
 
     fun findLatestTagBy(repository: Repository, releaseBranchRef: Ref, regex: Regex): Ref? {
@@ -34,6 +38,13 @@ class GitService {
                 }
             }
         }
+    }
+
+    fun createTag(git: Git, tagName: String, tagMessage: String, revObj: RevObject) {
+        git.tag().setName(tagName)
+            .setMessage(tagMessage)
+            .setObjectId(revObj)
+            .call()
     }
 
     private fun Repository.getAllTags(): List<Ref> {

@@ -34,7 +34,7 @@ class DetectSemanticCommits {
         } ?: println("No release branch detected. Release branches are $releaseBranches")
 
         val tagRef = gitService.findLatestTagBy(repository, branchRef, regex)
-            ?: throw Exception("No Tags found for project $projectName.")
+            ?: throw Exception("No Tags found for project $projectName. Example tag $projectName-v{MAYOR d+}.{MINOR d+}.{PATCH d+}-{PRERELEASE .*}+{BUILD .*}")
 
         println("Previous release tag: [${tagRef.name}]")
 
