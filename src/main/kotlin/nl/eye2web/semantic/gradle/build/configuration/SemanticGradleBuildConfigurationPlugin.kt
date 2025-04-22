@@ -7,6 +7,7 @@ import nl.eye2web.semantic.gradle.build.service.SemanticBuildService
 import nl.eye2web.semantic.gradle.build.configuration.task.IncludedBuildInfoTask
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.TaskReference
 
 class SemanticGradleBuildConfigurationPlugin : Plugin<Project> {
@@ -17,7 +18,7 @@ class SemanticGradleBuildConfigurationPlugin : Plugin<Project> {
     }
 
     override fun apply(project: Project) {
-        createProjectExtension(project)
+        val buildconfigExt = createProjectExtension(project)
 
         project.gradle.sharedServices.registerIfAbsent(
             SemanticGradlePlugin.Companion.SEMANTIC_BUILD_SERVICE,
@@ -26,25 +27,23 @@ class SemanticGradleBuildConfigurationPlugin : Plugin<Project> {
             parameters.getProjectPath().set(project.rootProject.projectDir)
         }
 
-        val buildInfoTask = project.tasks.register(BUILD_INFO_TASK_NAME, IncludedBuildInfoTask::class.java)
-
-        // afterEvaluate is needed otherwise `extension.excludeIncludedBuilds` is not configured yet
-        project.afterEvaluate {
-            buildInfoTask.configure {
-                dependsOn(includedBuildsInfoTasks(project))
-            }
+        project.tasks.register(BUILD_INFO_TASK_NAME, IncludedBuildInfoTask::class.java) {
+            dependsOn(includedBuildsInfoTasks(project, buildconfigExt))
         }
-
     }
 
-    private fun includedBuildsInfoTasks(project: Project): List<TaskReference> {
-        val semGradleExt = project.extensions.getByType(BuildConfigurationExtension::class.java)
-
-        return project.gradle.includedBuilds.filter { !semGradleExt.excludeIncludedBuilds.get().contains(it.name) }
-            .map { it.task(":$BUILD_INFO_TASK_NAME") }
+    private fun includedBuildsInfoTasks(
+        project: Project,
+        buildconfigExt: BuildConfigurationExtension
+    ): Provider<List<TaskReference>> {
+        val gradle = project.gradle
+        return project.provider {
+            gradle.includedBuilds.filter { !buildconfigExt.excludeIncludedBuilds.get().contains(it.name) }
+                .map { it.task(":$BUILD_INFO_TASK_NAME") }
+        }
     }
 
-    private fun createProjectExtension(project: Project) {
+    private fun createProjectExtension(project: Project): BuildConfigurationExtension {
         val semanticGradleExt =
             project.extensions.create(
                 SEMANTIC_GRADLE_BUILD_CONFIG_EXTENSION_NAME,
@@ -54,5 +53,7 @@ class SemanticGradleBuildConfigurationPlugin : Plugin<Project> {
         semanticGradleExt.projectName.convention(project.name)
         semanticGradleExt.otherScanPaths.convention(listOf())
         semanticGradleExt.excludeIncludedBuilds.convention(listOf())
+
+        return semanticGradleExt
     }
 }
