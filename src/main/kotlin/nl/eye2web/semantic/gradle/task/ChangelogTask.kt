@@ -96,7 +96,7 @@ abstract class ChangelogTask() : DefaultTask() {
         commitMessage: String
     ): String {
         var commitMessage1 = commitMessage
-        replaceWithLink.regex.matchEntire(commitMessage1)?.let { matchResult ->
+        replaceWithLink.regex.findAll(commitMessage1).forEach { matchResult ->
             var replaceWith = replaceWithLink.replaceWith
             matchResult.groups.forEachIndexed { index, group ->
                 group?.let {
