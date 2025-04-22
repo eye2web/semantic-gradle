@@ -1,8 +1,9 @@
 package nl.eye2web.semantic.gradle.build.configuration
 
-import nl.eye2web.semantic.gradle.SemanticGradlePlugin.Companion.GIT_DIRECTORY_BUILD_SERVICE
+
+import nl.eye2web.semantic.gradle.SemanticGradlePlugin
 import nl.eye2web.semantic.gradle.build.configuration.extension.BuildConfigurationExtension
-import nl.eye2web.semantic.gradle.build.service.GitDirectoryBuildService
+import nl.eye2web.semantic.gradle.build.service.SemanticBuildService
 import nl.eye2web.semantic.gradle.build.configuration.task.IncludedBuildInfoTask
 import org.gradle.api.Plugin
 import org.gradle.api.Project
@@ -18,16 +19,14 @@ class SemanticGradleBuildConfigurationPlugin : Plugin<Project> {
     override fun apply(project: Project) {
         createProjectExtension(project)
 
-        val gitDirBuildService = project.gradle.sharedServices.registerIfAbsent(
-            GIT_DIRECTORY_BUILD_SERVICE,
-            GitDirectoryBuildService::class.java
+        project.gradle.sharedServices.registerIfAbsent(
+            SemanticGradlePlugin.Companion.SEMANTIC_BUILD_SERVICE,
+            SemanticBuildService::class.java
         ) {
             parameters.getProjectPath().set(project.rootProject.projectDir)
         }
 
-        val buildInfoTask = project.tasks.register(BUILD_INFO_TASK_NAME, IncludedBuildInfoTask::class.java) {
-            gitPath.convention { gitDirBuildService.get().getGitRootDirectory().toFile() }
-        }
+        val buildInfoTask = project.tasks.register(BUILD_INFO_TASK_NAME, IncludedBuildInfoTask::class.java)
 
         // afterEvaluate is needed otherwise `extension.excludeIncludedBuilds` is not configured yet
         project.afterEvaluate {

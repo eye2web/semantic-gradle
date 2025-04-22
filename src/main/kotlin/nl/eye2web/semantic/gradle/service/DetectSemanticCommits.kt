@@ -12,6 +12,13 @@ import java.util.stream.StreamSupport
 
 class DetectSemanticCommits {
 
+    companion object {
+        private const val VERSION_REGEX =
+            "(\\d+)\\.(\\d+)\\.(\\d+)(?:-([A-Za-z0-9-]+(?:\\.[A-Za-z0-9-]+)*))?(?:\\+([A-Za-z0-9-]+(?:\\.[A-Za-z0-9-]+)*))?"
+
+        fun getVersionRegex(): Regex = "^$VERSION_REGEX\$".toRegex()
+    }
+
     fun getChangesSincePreviousRelease(
         gitRepo: File,
         buildConfigurationList: List<BuildConfiguration>,
@@ -22,7 +29,7 @@ class DetectSemanticCommits {
 
         val repository = gitService.openGitRepo(gitRepo)
 
-        val regex = getSemverRegex(projectName)
+        val semVerProjectRegex = getSemverRegex(projectName)
 
         val branchRef =
             repository.findRef(repository.branch) ?: throw Exception("Branch ${repository.branch} not found.")
@@ -33,7 +40,7 @@ class DetectSemanticCommits {
             println("Release branch [$branch] detected")
         } ?: println("No release branch detected. Release branches are $releaseBranches")
 
-        val tagRef = gitService.findLatestTagBy(repository, branchRef, regex)
+        val tagRef = gitService.findLatestTagBy(repository, branchRef, semVerProjectRegex)
             ?: throw Exception("No Tags found for project $projectName. Example tag $projectName-v{MAYOR d+}.{MINOR d+}.{PATCH d+}-{PRERELEASE .*}+{BUILD .*}")
 
         println("Previous release tag: [${tagRef.name}]")
@@ -69,12 +76,12 @@ class DetectSemanticCommits {
                 GitCommit(commit.name, commit.fullMessage.trimEnd { it == '\n' })
             }.toList()
 
-            return SemanticChanges(getPreviousReleaseVersion(projectName, regex, tagRef), commits)
+            return SemanticChanges(getPreviousReleaseVersion(projectName, semVerProjectRegex, tagRef), commits)
         }
     }
 
     private fun getSemverRegex(projectName: String): Regex {
-        return "^refs/tags/$projectName-v(\\d+)\\.(\\d+)\\.(\\d+)(?:-([A-Za-z0-9-]+(?:\\.[A-Za-z0-9-]+)*))?(?:\\+([A-Za-z0-9-]+(?:\\.[A-Za-z0-9-]+)*))?\$".toRegex()
+        return "^refs/tags/$projectName-v$VERSION_REGEX\$".toRegex()
     }
 
     private fun getPreviousReleaseVersion(projectName: String, regex: Regex, tagRef: Ref): ReleaseVersion {

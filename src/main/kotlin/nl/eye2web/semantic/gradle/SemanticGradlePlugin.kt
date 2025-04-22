@@ -1,26 +1,35 @@
 package nl.eye2web.semantic.gradle
 
 import nl.eye2web.semantic.gradle.build.configuration.SemanticGradleBuildConfigurationPlugin
-import nl.eye2web.semantic.gradle.build.service.GitDirectoryBuildService
+import nl.eye2web.semantic.gradle.build.service.SemanticBuildService
 import nl.eye2web.semantic.gradle.task.DetectSemanticChanges
 import nl.eye2web.semantic.gradle.build.configuration.task.IncludedBuildInfoTask
+import nl.eye2web.semantic.gradle.extension.SemanticGradleExtension
+import nl.eye2web.semantic.gradle.task.CreateTagTask
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 
 open class SemanticGradlePlugin : Plugin<Project> {
 
     companion object {
+
+        const val CREATE_TAG_TASK = "createTag"
+
         const val SEMANTIC_RELEASE_ROOT_TASK = "detectSemanticChanges"
 
-        const val GIT_DIRECTORY_BUILD_SERVICE = "gitDirectoryBuildService"
+        const val SEMANTIC_BUILD_SERVICE = "semanticBuildService"
+
+        const val ROOT_EXTENSION_NAME = "sematicVersioning"
     }
 
     override fun apply(project: Project) {
         project.plugins.apply(SemanticGradleBuildConfigurationPlugin::class.java)
+        val semanticVersioningExt =
+            project.extensions.create(ROOT_EXTENSION_NAME, SemanticGradleExtension::class.java, project)
 
         project.gradle.sharedServices.registerIfAbsent(
-            GIT_DIRECTORY_BUILD_SERVICE,
-            GitDirectoryBuildService::class.java
+            SEMANTIC_BUILD_SERVICE,
+            SemanticBuildService::class.java
         ) {
             parameters.getProjectPath().set(project.rootProject.projectDir)
         }
@@ -30,8 +39,9 @@ open class SemanticGradlePlugin : Plugin<Project> {
         project.tasks.register(SEMANTIC_RELEASE_ROOT_TASK, DetectSemanticChanges::class.java) {
             dependsOn(buildInfoTask)
             buildInfoFile.convention(buildInfoTask.outputFile.asFile)
-
-            releaseBranchNames.set(listOf("master"))
+            releaseBranchNames.set(semanticVersioningExt.releaseBranches)
         }
+
+        project.tasks.register(CREATE_TAG_TASK, CreateTagTask::class.java)
     }
 }

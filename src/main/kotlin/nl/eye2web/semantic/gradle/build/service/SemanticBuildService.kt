@@ -8,7 +8,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.util.Objects
 
-abstract class GitDirectoryBuildService : BuildService<GitDirectoryBuildService.Parameters> {
+abstract class SemanticBuildService : BuildService<SemanticBuildService.Parameters> {
 
     interface Parameters : BuildServiceParameters {
         fun getProjectPath(): Property<File>

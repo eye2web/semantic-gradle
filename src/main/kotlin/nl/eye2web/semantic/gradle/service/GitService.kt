@@ -28,7 +28,7 @@ class GitService {
 
             val sortedTags = revWalk.sortTagsByDescending(tags)
 
-            val releaseBranchHeadCommit = revWalk.parseCommit(releaseBranchRef.objectId);
+            val releaseBranchHeadCommit = revWalk.parseCommit(releaseBranchRef.objectId)
             return sortedTags.find { tag ->
                 if (regex.matches(tag.name)) {
                     val revTag = revWalk.parseCommit(tag.objectId)

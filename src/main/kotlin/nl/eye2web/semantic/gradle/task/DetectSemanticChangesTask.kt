@@ -2,17 +2,23 @@ package nl.eye2web.semantic.gradle.task
 
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import nl.eye2web.semantic.gradle.SemanticGradlePlugin.Companion.GIT_DIRECTORY_BUILD_SERVICE
+import nl.eye2web.semantic.gradle.SemanticGradlePlugin
+import nl.eye2web.semantic.gradle.SemanticGradlePlugin.Companion.SEMANTIC_BUILD_SERVICE
 import nl.eye2web.semantic.gradle.build.configuration.model.BuildConfiguration
 import nl.eye2web.semantic.gradle.service.DetectSemanticCommits
-import nl.eye2web.semantic.gradle.build.service.GitDirectoryBuildService
+import nl.eye2web.semantic.gradle.build.service.SemanticBuildService
 import org.gradle.api.DefaultTask
+import org.gradle.api.provider.Property
+import org.gradle.api.services.ServiceReference
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.TaskAction
 
 import java.io.File
 
-open class DetectSemanticChanges : DefaultTask() {
+abstract class DetectSemanticChanges : DefaultTask() {
+
+    @get:ServiceReference(SEMANTIC_BUILD_SERVICE)
+    abstract val buildService: Property<SemanticBuildService>
 
     @get:Input
     val releaseBranchNames = project.objects.listProperty(String::class.java)
@@ -21,17 +27,10 @@ open class DetectSemanticChanges : DefaultTask() {
     val buildInfoFile = project.objects.property(File::class.java)
 
     @get:Input
-    val gitDir = project.objects.property(File::class.java)
-
-    @get:Input
     val projectName = project.objects.property(String::class.java)
 
     init {
-        group = "release"
-        val gitDirBuildService =
-            project.gradle.sharedServices.registrations.findByName(GIT_DIRECTORY_BUILD_SERVICE)?.service?.get() as GitDirectoryBuildService
-
-        gitDir.convention(gitDirBuildService.getGitRootDirectory().toFile())
+        group = "semanticGit"
         projectName.convention(project.name)
     }
 
@@ -43,7 +42,7 @@ open class DetectSemanticChanges : DefaultTask() {
             objectMapper.readValue(buildInfoFile.get(), object : TypeReference<List<BuildConfiguration>>() {})
 
         val changes = DetectSemanticCommits().getChangesSincePreviousRelease(
-            gitDir.get(),
+            buildService.get().getGitRootDirectory().toFile(),
             buildConfigurationList,
             releaseBranchNames.get(),
             projectName.get()
