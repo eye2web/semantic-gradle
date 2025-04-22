@@ -102,14 +102,20 @@ abstract class ChangelogTask() : DefaultTask() {
     }
 
     private fun getVersion(semanticChanges: SemanticChanges): String =
-        if (isReleased.get()) semanticChanges.nextVersion().toString() else "Unreleased"
+        if (isReleased.get()) semanticChanges.nextVersion()
+            .toString() else getUnreleasedVersion(semanticChanges)
+
+    private fun getUnreleasedVersion(semanticChanges: SemanticChanges): String =
+        "Unreleased<${semanticChanges.nextVersion()}>"
 
     private fun File.prependOrReplaceText(text: String) {
 
         val originalContentLines = if (this.exists()) this.readLines() else listOf()
 
-        val header = getChangelogNotesHeader("Unreleased")
-        val footer = getChangelogNotesFooter("Unreleased")
+        val semanticChanges = buildService.get().getDetectedChanges()!!
+
+        val header = getChangelogNotesHeader(getUnreleasedVersion(semanticChanges))
+        val footer = getChangelogNotesFooter(getUnreleasedVersion(semanticChanges))
 
         if (originalContentLines.contains(header.trim()) && originalContentLines.contains(footer.trim())) {
             logger.lifecycle("Found Unreleased changes. Updating Unreleased changes")

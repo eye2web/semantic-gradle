@@ -59,14 +59,14 @@ open class SemanticGradlePlugin : Plugin<Project> {
         val changeLogReleaseTask =
             project.tasks.register(CHANGELOG_RELEASE_TASK, ChangelogTask::class.java) {
                 isReleased.set(true)
-                dependsOn(detectSemanticChangesTask)
+                mustRunAfter(detectSemanticChangesTask)
             }
 
         project.tasks.register(CREATE_TAG_TASK, CreateTagTask::class.java)
 
 
         project.tasks.register(RELEASE_TASK, ReleaseTask::class.java) {
-            dependsOn(changeLogReleaseTask)
+            dependsOn(detectSemanticChangesTask, changeLogReleaseTask)
         }
 
     }
