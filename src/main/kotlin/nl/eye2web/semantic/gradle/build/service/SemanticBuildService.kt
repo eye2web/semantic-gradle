@@ -1,5 +1,6 @@
 package nl.eye2web.semantic.gradle.build.service
 
+import nl.eye2web.semantic.gradle.model.SemanticChanges
 import org.gradle.api.provider.Property
 import org.gradle.api.services.BuildService
 import org.gradle.api.services.BuildServiceParameters
@@ -16,8 +17,18 @@ abstract class SemanticBuildService : BuildService<SemanticBuildService.Paramete
 
     private val rootDirectory: Path = getGitRootDirectoryRecursively(parameters.getProjectPath().get().toPath())
 
+    private var detectedChanges: SemanticChanges? = null
+
     fun getGitRootDirectory(): Path {
         return rootDirectory
+    }
+
+    fun storeDetectedChanges(detectedChanges: SemanticChanges) {
+        this.detectedChanges = detectedChanges
+    }
+
+    fun getDetectedChanges(): SemanticChanges? {
+        return detectedChanges
     }
 
     private fun getGitRootDirectoryRecursively(path: Path): Path {

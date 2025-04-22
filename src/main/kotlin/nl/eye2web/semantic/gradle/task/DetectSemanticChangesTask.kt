@@ -2,7 +2,6 @@ package nl.eye2web.semantic.gradle.task
 
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import nl.eye2web.semantic.gradle.SemanticGradlePlugin
 import nl.eye2web.semantic.gradle.SemanticGradlePlugin.Companion.SEMANTIC_BUILD_SERVICE
 import nl.eye2web.semantic.gradle.build.configuration.model.BuildConfiguration
 import nl.eye2web.semantic.gradle.service.DetectSemanticCommits
@@ -47,6 +46,7 @@ abstract class DetectSemanticChanges : DefaultTask() {
             releaseBranchNames.get(),
             projectName.get()
         )
+        buildService.get().storeDetectedChanges(changes)
 
         logger.lifecycle("=================================================================================")
         logger.lifecycle("[${changes.gitCommits.size}] new commit(s) since last release")

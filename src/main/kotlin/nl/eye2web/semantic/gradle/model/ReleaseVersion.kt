@@ -9,7 +9,15 @@ data class ReleaseVersion(
     val build: String
 ) {
     fun getVersionAsTag(): String {
-        var version = "$projectName-v$major.$minor.$patch"
+        return "$projectName-${toString()}"
+    }
+
+    fun incrementMajor(): ReleaseVersion = copy(major = major + 1, minor = 0, patch = 0)
+    fun incrementMinor(): ReleaseVersion = copy(minor = minor + 1, patch = 0)
+    fun incrementPatch(): ReleaseVersion = copy(patch = patch + 1)
+
+    override fun toString(): String {
+        var version = "v$major.$minor.$patch"
 
         if (preRelease.isNotEmpty()) {
             version += "-$preRelease"

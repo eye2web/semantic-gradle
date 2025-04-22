@@ -4,11 +4,14 @@ import org.gradle.api.Project
 
 open class ChangeLog(project: Project) {
 
-    val name = project.objects.property(String::class.java)
+    val shouldLogShortCommitHash = project.objects.property(Boolean::class.java)
+
+    val fileName = project.objects.property(String::class.java)
     val replaceWithLinks = project.objects.listProperty(ReplaceWithLink::class.java)
 
     init {
-        name.convention("changelog")
+        fileName.convention("changelog")
+        shouldLogShortCommitHash.convention(false)
     }
 
 }
