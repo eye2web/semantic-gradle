@@ -15,11 +15,15 @@ import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.TaskAction
 import org.gradle.kotlin.dsl.get
 import java.io.File
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 abstract class ChangelogTask() : DefaultTask() {
 
     @get:ServiceReference(SEMANTIC_BUILD_SERVICE)
     abstract val buildService: Property<SemanticBuildService>
+
+    val isReleased = project.objects.property(Boolean::class.java)
 
     @get:OutputFile
     val outputFile: RegularFileProperty = project.objects.fileProperty()
@@ -32,6 +36,9 @@ abstract class ChangelogTask() : DefaultTask() {
         val fileName = semanticVersioningExt.changeLog.fileName.map { "$it.md" }
 
         group = "semanticGit"
+
+        isReleased.convention(false)
+
         outputFile.convention(projectDir.file(fileName))
 
         outputs.upToDateWhen { false }
@@ -42,10 +49,11 @@ abstract class ChangelogTask() : DefaultTask() {
 
         val semanticChanges = buildService.get().getDetectedChanges()!!
 
-        if (changelogContainsRelease(semanticChanges)) {
+        if (isReleased.get() && changelogContainsRelease(semanticChanges)) {
             logger.warn("Changelog already contains release for ${semanticChanges.nextVersion()}. Skipping changelog update.")
         } else {
-            outputFile.get().asFile.prependText(createChangelogNotes())
+            val changelogNotes = createChangelogNotes()
+            outputFile.get().asFile.prependOrReplaceText(changelogNotes)
         }
     }
 
@@ -67,13 +75,58 @@ abstract class ChangelogTask() : DefaultTask() {
                 }.reduce { acc, s -> "$acc\n$s" })
         }.reduce { acc, s -> "$acc\n$s" }
 
-        return "${createMarkdownReleaseHeader(semanticChanges)}\n$markDownChanges\n---\n"
+        return "${
+            getChangelogNotesHeader(
+                getVersion(semanticChanges)
+            )
+        }${createMarkdownReleaseHeader(semanticChanges)}\n$markDownChanges\n---\n${
+            getChangelogNotesFooter(
+                getVersion(semanticChanges)
+            )
+        }"
     }
 
-    private fun File.prependText(text: String) {
-        val originalContent = if (this.exists()) this.readText() else ""
-        this.writeText(text + originalContent)
+    private fun getChangelogNotesHeader(version: String): String {
+        return "<!-- <$version> -->\n"
     }
+
+    private fun getChangelogNotesFooter(version: String): String {
+        return "<!-- </$version> -->\n"
+    }
+
+    private fun getVersion(semanticChanges: SemanticChanges): String =
+        if (isReleased.get()) semanticChanges.nextVersion().toString() else "Unreleased"
+
+    private fun File.prependOrReplaceText(text: String) {
+
+        val originalContentLines = if (this.exists()) this.readLines() else listOf()
+
+        val header = getChangelogNotesHeader("Unreleased")
+        val footer = getChangelogNotesFooter("Unreleased")
+
+        if (originalContentLines.contains(header.trim()) && originalContentLines.contains(footer.trim())) {
+            logger.lifecycle("Found Unreleased changes. Updating Unreleased changes")
+            var skip = false
+
+            originalContentLines.filter { line ->
+                if (line.contains(header.trim())) {
+                    skip = true
+                } else if (line.contains(footer.trim())) {
+                    skip = false
+                    return@filter false
+                }
+
+                return@filter !skip
+            }
+                .fold("") { acc, s -> "$acc\n$s" }
+                .let {
+                    this.writeText(text + it.trim())
+                }
+        } else {
+            this.writeText(text + originalContentLines.fold("") { acc, s -> "$acc\n$s" }.trim())
+        }
+    }
+
 
     private fun formatCommitMessage(commit: GitCommit): String {
         var commitMessage = commit.commitMessage
@@ -124,6 +177,8 @@ abstract class ChangelogTask() : DefaultTask() {
     }
 
     private fun createMarkdownReleaseHeader(semanticChanges: SemanticChanges): String {
-        return "### Release ${semanticChanges.nextVersion()}"
+        val date = LocalDate.now().format(DateTimeFormatter.ISO_DATE)
+
+        return "### [${semanticChanges.previousVersion} --> ${getVersion(semanticChanges)}] - $date"
     }
 }

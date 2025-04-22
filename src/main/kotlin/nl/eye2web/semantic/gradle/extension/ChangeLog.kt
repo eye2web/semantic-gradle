@@ -10,7 +10,7 @@ open class ChangeLog(project: Project) {
     val replaceWithLinks = project.objects.listProperty(ReplaceWithLink::class.java)
 
     init {
-        fileName.convention("changelog")
+        fileName.convention("CHANGELOG")
         shouldLogShortCommitHash.convention(false)
     }
 
