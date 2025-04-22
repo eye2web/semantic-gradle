@@ -53,7 +53,10 @@ abstract class ChangelogTask() : DefaultTask() {
             logger.warn("Changelog already contains release for ${semanticChanges.nextVersion()}. Skipping changelog update.")
         } else {
             val changelogNotes = createChangelogNotes()
-            outputFile.get().asFile.prependOrReplaceText(changelogNotes)
+
+            changelogNotes?.let {
+                outputFile.get().asFile.prependOrReplaceText(it)
+            } ?: logger.warn("No changes detected. Skipping changelog update.")
         }
     }
 
@@ -61,8 +64,12 @@ abstract class ChangelogTask() : DefaultTask() {
         outputFile.get().asFile.exists() && outputFile.get().asFile.readText()
             .contains(createMarkdownReleaseHeader(semanticChanges))
 
-    private fun createChangelogNotes(): String {
+    private fun createChangelogNotes(): String? {
         val semanticChanges = buildService.get().getDetectedChanges()!!
+
+        if (semanticChanges.gitCommits.isEmpty()) {
+            return null
+        }
 
         val markDownChanges = semanticChanges.gitCommits.groupBy { it.type }.map { (type, commits) ->
             """
@@ -72,8 +79,8 @@ abstract class ChangelogTask() : DefaultTask() {
             """.trimIndent().trimMargin()
                 .format(commits.map { commit ->
                     "- ${formatCommitMessage(commit)}"
-                }.reduce { acc, s -> "$acc\n$s" })
-        }.reduce { acc, s -> "$acc\n$s" }
+                }.fold("") { acc, s -> "$acc\n$s" }).trim()
+        }.fold("") { acc, s -> "$acc\n$s" }.trim()
 
         return "${
             getChangelogNotesHeader(

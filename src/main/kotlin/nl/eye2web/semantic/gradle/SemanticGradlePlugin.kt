@@ -7,6 +7,7 @@ import nl.eye2web.semantic.gradle.build.configuration.task.IncludedBuildInfoTask
 import nl.eye2web.semantic.gradle.extension.SemanticGradleExtension
 import nl.eye2web.semantic.gradle.task.ChangelogTask
 import nl.eye2web.semantic.gradle.task.CreateTagTask
+import nl.eye2web.semantic.gradle.task.ReleaseTask
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 
@@ -18,11 +19,15 @@ open class SemanticGradlePlugin : Plugin<Project> {
 
         const val SEMANTIC_RELEASE_ROOT_TASK = "detectSemanticChanges"
 
-        const val CHANGELOG_TASK = "generateChangelog"
+        const val CHANGELOG_TASK = "generateUnreleasedChangelog"
+
+        const val CHANGELOG_RELEASE_TASK = "generateReleaseChangelog"
 
         const val SEMANTIC_BUILD_SERVICE = "semanticBuildService"
 
         const val ROOT_EXTENSION_NAME = "sematicVersioning"
+
+        const val RELEASE_TASK = "semanticRelease"
     }
 
     override fun apply(project: Project) {
@@ -46,10 +51,22 @@ open class SemanticGradlePlugin : Plugin<Project> {
                 releaseBranchNames.set(semanticVersioningExt.releaseBranches)
             }
 
+        project.tasks.register(CHANGELOG_TASK, ChangelogTask::class.java) {
+            isReleased.set(false)
+            dependsOn(detectSemanticChangesTask)
+        }
+
+        val changeLogReleaseTask =
+            project.tasks.register(CHANGELOG_RELEASE_TASK, ChangelogTask::class.java) {
+                isReleased.set(true)
+                dependsOn(detectSemanticChangesTask)
+            }
+
         project.tasks.register(CREATE_TAG_TASK, CreateTagTask::class.java)
 
-        project.tasks.register(CHANGELOG_TASK, ChangelogTask::class.java) {
-            dependsOn(detectSemanticChangesTask)
+
+        project.tasks.register(RELEASE_TASK, ReleaseTask::class.java) {
+            dependsOn(changeLogReleaseTask)
         }
 
     }
