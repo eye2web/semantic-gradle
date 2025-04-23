@@ -1,7 +1,9 @@
 package nl.eye2web.semantic.gradle.task
 
+import nl.eye2web.semantic.gradle.SemanticGradlePlugin.Companion.ROOT_EXTENSION_NAME
 import nl.eye2web.semantic.gradle.SemanticGradlePlugin.Companion.SEMANTIC_BUILD_SERVICE
 import nl.eye2web.semantic.gradle.build.service.SemanticBuildService
+import nl.eye2web.semantic.gradle.extension.SemanticGradleExtension
 import nl.eye2web.semantic.gradle.service.GitService
 import org.eclipse.jgit.api.Git
 import org.eclipse.jgit.lib.Repository
@@ -11,6 +13,7 @@ import org.gradle.api.provider.Property
 import org.gradle.api.services.ServiceReference
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.TaskAction
+import org.gradle.kotlin.dsl.get
 import kotlin.use
 
 abstract class ReleaseTask() : DefaultTask() {
@@ -20,6 +23,9 @@ abstract class ReleaseTask() : DefaultTask() {
 
     @get:Input
     val projectName = project.objects.property(String::class.java)
+
+    private val semanticVersioningExt: SemanticGradleExtension =
+        project.extensions[ROOT_EXTENSION_NAME] as SemanticGradleExtension
 
     init {
         group = "semanticGit"
@@ -52,7 +58,8 @@ abstract class ReleaseTask() : DefaultTask() {
         RevWalk(repository).use { revWalk ->
             val commit = revWalk.parseAny(repository.findRef(repository.branch).objectId)
 
-            val nextVersion = buildService.get().getDetectedChanges()!!.nextVersion()
+            val nextVersion =
+                buildService.get().getDetectedChanges()!!.nextVersion(semanticVersioningExt.conventionCategories.get())
 
             gitService.createTag(git, nextVersion.getVersionAsTag(), "Tag for project ${projectName.get()}", commit)
         }

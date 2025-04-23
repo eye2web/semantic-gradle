@@ -50,7 +50,7 @@ abstract class ChangelogTask() : DefaultTask() {
         val semanticChanges = buildService.get().getDetectedChanges()!!
 
         if (isReleased.get() && changelogContainsRelease(semanticChanges)) {
-            logger.warn("Changelog already contains release for ${semanticChanges.nextVersion()}. Skipping changelog update.")
+            logger.warn("Changelog already contains release for ${semanticChanges.nextVersion(semanticVersioningExt.conventionCategories.get())}. Skipping changelog update.")
         } else {
             val changelogNotes = createChangelogNotes()
 
@@ -71,16 +71,27 @@ abstract class ChangelogTask() : DefaultTask() {
             return null
         }
 
-        val markDownChanges = semanticChanges.gitCommits.groupBy { it.type }.map { (type, commits) ->
-            """
-                
-            #### ${type.title}
-            %s
-            """.trimIndent().trimMargin()
-                .format(commits.map { commit ->
-                    "- ${formatCommitMessage(commit)}"
-                }.fold("") { acc, s -> "$acc\n$s" }).trim()
-        }.fold("") { acc, s -> "$acc\n$s" }.trim()
+        val categoryGroupedCommitMessages = groupSemanticChangesByCategory(semanticChanges)
+
+        return createMarkdownChangelog(categoryGroupedCommitMessages, semanticChanges)
+    }
+
+    private fun createMarkdownChangelog(
+        categoryGroupedCommitMessages: List<Pair<String, MutableList<String>>>,
+        semanticChanges: SemanticChanges
+    ): String {
+        val markDownChanges = categoryGroupedCommitMessages
+            .filter { pair -> pair.second.isNotEmpty() }
+            .map { (category, commitMessages) ->
+                """
+                    
+                #### $category
+                %s
+                """.trimIndent().trimMargin()
+                    .format(commitMessages.map { commitMessage ->
+                        "- ${formatCommitMessageLinks(commitMessage)}"
+                    }.fold("") { acc, s -> "$acc\n$s" }.trim())
+            }.fold("") { acc, s -> "$acc\n$s" }.trim()
 
         return "${
             getChangelogNotesHeader(
@@ -93,6 +104,48 @@ abstract class ChangelogTask() : DefaultTask() {
         }"
     }
 
+    private fun groupSemanticChangesByCategory(semanticChanges: SemanticChanges): List<Pair<String, MutableList<String>>> {
+        val gitCommits = semanticChanges.gitCommits.toMutableList()
+
+        val categoryGroupedCommitMessages = semanticVersioningExt.conventionCategories.get().map { category ->
+            Pair(
+                category.name,
+                gitCommits.filter { commit ->
+                    category.getConventions().any { commitConvention ->
+                        commit.commitMessage.trim().startsWith(commitConvention, true)
+                    }
+                }.map { commit ->
+                    gitCommits.remove(commit)
+                    var commitMessage = commit.commitMessage
+                    category.getConventions().forEach { commitConvention ->
+                        commitMessage = commitMessage.replace(commitConvention, "", true)
+                    }
+
+                    if (semanticVersioningExt.changeLog.shouldLogShortCommitHash.get()) {
+                        commitMessage = appendShortCommitHash(commitMessage, commit)
+                    }
+
+                    commitMessage
+                }.toMutableList()
+            )
+        }
+
+        // Add all other commit messages to default category
+        val defaultCategoryName = semanticVersioningExt.defaultConventionCategoryName
+        categoryGroupedCommitMessages.forEach { (categoryName, commitMessages) ->
+            if (categoryName == defaultCategoryName.get()) {
+                commitMessages.addAll(gitCommits.map { commit ->
+                    var commitMessage = commit.commitMessage.trim()
+                    if (semanticVersioningExt.changeLog.shouldLogShortCommitHash.get()) {
+                        commitMessage = appendShortCommitHash(commitMessage, commit)
+                    }
+                    commitMessage
+                })
+            }
+        }
+        return categoryGroupedCommitMessages
+    }
+
     private fun getChangelogNotesHeader(version: String): String {
         return "<!-- <$version> -->\n"
     }
@@ -102,20 +155,18 @@ abstract class ChangelogTask() : DefaultTask() {
     }
 
     private fun getVersion(semanticChanges: SemanticChanges): String =
-        if (isReleased.get()) semanticChanges.nextVersion()
-            .toString() else getUnreleasedVersion(semanticChanges)
+        if (isReleased.get()) semanticChanges.nextVersion(semanticVersioningExt.conventionCategories.get())
+            .toString() else getUnreleasedVersion()
 
-    private fun getUnreleasedVersion(semanticChanges: SemanticChanges): String =
-        "Unreleased<${semanticChanges.nextVersion()}>"
+    private fun getUnreleasedVersion(): String =
+        "Unreleased"
 
     private fun File.prependOrReplaceText(text: String) {
 
         val originalContentLines = if (this.exists()) this.readLines() else listOf()
 
-        val semanticChanges = buildService.get().getDetectedChanges()!!
-
-        val header = getChangelogNotesHeader(getUnreleasedVersion(semanticChanges))
-        val footer = getChangelogNotesFooter(getUnreleasedVersion(semanticChanges))
+        val header = getChangelogNotesHeader(getUnreleasedVersion())
+        val footer = getChangelogNotesFooter(getUnreleasedVersion())
 
         if (originalContentLines.contains(header.trim()) && originalContentLines.contains(footer.trim())) {
             logger.lifecycle("Found Unreleased changes. Updating Unreleased changes")
@@ -140,21 +191,14 @@ abstract class ChangelogTask() : DefaultTask() {
         }
     }
 
-
-    private fun formatCommitMessage(commit: GitCommit): String {
-        var commitMessage = commit.commitMessage
-
-        if (semanticVersioningExt.changeLog.shouldLogShortCommitHash.get()) {
-            commitMessage = appendShortCommitHash(commitMessage, commit)
-        }
-
-        var stripedCommitMessage = stripSemanticPostfix(commitMessage)
+    private fun formatCommitMessageLinks(commit: String): String {
+        var commitMessage = commit
 
         semanticVersioningExt.changeLog.replaceWithLinks.get().forEach { replaceWithLink ->
-            stripedCommitMessage = findAndReplaceWithLink(replaceWithLink, stripedCommitMessage)
+            commitMessage = findAndReplaceWithLink(replaceWithLink, commitMessage)
         }
 
-        return stripedCommitMessage
+        return commitMessage
     }
 
     private fun findAndReplaceWithLink(
@@ -163,7 +207,7 @@ abstract class ChangelogTask() : DefaultTask() {
     ): String {
         var commitMessage1 = commitMessage
         replaceWithLink.regex.findAll(commitMessage1).forEach { matchResult ->
-            var replaceWith = replaceWithLink.replaceWith
+            val replaceWith = replaceWithLink.replaceWith
             matchResult.groups.forEachIndexed { index, group ->
                 group?.let {
                     replaceWith.indexOf("{$index}")
@@ -181,12 +225,6 @@ abstract class ChangelogTask() : DefaultTask() {
 
     private fun appendShortCommitHash(commitMessage: String, commit: GitCommit): String {
         return "$commitMessage - [${commit.shortCommitHash()}]"
-    }
-
-    private fun stripSemanticPostfix(commitMessage: String): String {
-        val searchFor = ": "
-        val startingIndex = commitMessage.indexOf(searchFor).let { if (it < 0) 0 else it + searchFor.length }
-        return commitMessage.substring(startingIndex).trim()
     }
 
     private fun createMarkdownReleaseHeader(semanticChanges: SemanticChanges): String {
