@@ -47,7 +47,7 @@ abstract class ChangelogTask() : DefaultTask() {
     @TaskAction
     fun action() {
 
-        val semanticChanges = buildService.get().getDetectedChanges()!!
+        val semanticChanges = buildService.get().getDetectedChanges(semanticVersioningExt.projectName.get())!!
 
         if (isReleased.get() && changelogContainsRelease(semanticChanges)) {
             logger.warn("Changelog already contains release for ${semanticChanges.nextVersion(semanticVersioningExt.conventionCategories.get())}. Skipping changelog update.")
@@ -65,7 +65,7 @@ abstract class ChangelogTask() : DefaultTask() {
             .contains(createMarkdownReleaseHeader(semanticChanges))
 
     private fun createChangelogNotes(): String? {
-        val semanticChanges = buildService.get().getDetectedChanges()!!
+        val semanticChanges = buildService.get().getDetectedChanges(semanticVersioningExt.projectName.get())!!
 
         if (semanticChanges.gitCommits.isEmpty()) {
             return null

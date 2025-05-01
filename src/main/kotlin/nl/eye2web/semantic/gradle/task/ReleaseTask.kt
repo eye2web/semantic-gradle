@@ -42,7 +42,7 @@ abstract class ReleaseTask() : DefaultTask() {
         val git = gitService.openGit(buildService.get().getGitRootDirectory().toFile())
         val repository = gitService.openGitRepo(buildService.get().getGitRootDirectory().toFile())
 
-        buildService.get().getDetectedChanges()?.let { semanticChanges ->
+        buildService.get().getDetectedChanges(semanticVersioningExt.projectName.get())?.let { semanticChanges ->
             semanticChanges.gitCommits
                 .takeIf { it.isNotEmpty() }?.let {
                     createReleaseTag(repository, gitService, git)
@@ -59,7 +59,8 @@ abstract class ReleaseTask() : DefaultTask() {
             val commit = revWalk.parseAny(repository.findRef(repository.branch).objectId)
 
             val nextVersion =
-                buildService.get().getDetectedChanges()!!.nextVersion(semanticVersioningExt.conventionCategories.get())
+                buildService.get().getDetectedChanges(semanticVersioningExt.projectName.get())!!
+                    .nextVersion(semanticVersioningExt.conventionCategories.get())
 
             gitService.createTag(git, nextVersion.getVersionAsTag(), "Tag for project ${projectName.get()}", commit)
         }

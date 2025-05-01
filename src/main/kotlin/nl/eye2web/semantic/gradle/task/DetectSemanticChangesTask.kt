@@ -2,15 +2,18 @@ package nl.eye2web.semantic.gradle.task
 
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import nl.eye2web.semantic.gradle.SemanticGradlePlugin.Companion.ROOT_EXTENSION_NAME
 import nl.eye2web.semantic.gradle.SemanticGradlePlugin.Companion.SEMANTIC_BUILD_SERVICE
 import nl.eye2web.semantic.gradle.build.configuration.model.BuildConfiguration
 import nl.eye2web.semantic.gradle.service.DetectSemanticCommits
 import nl.eye2web.semantic.gradle.build.service.SemanticBuildService
+import nl.eye2web.semantic.gradle.extension.SemanticGradleExtension
 import org.gradle.api.DefaultTask
 import org.gradle.api.provider.Property
 import org.gradle.api.services.ServiceReference
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.TaskAction
+import org.gradle.kotlin.dsl.get
 
 import java.io.File
 
@@ -27,6 +30,9 @@ abstract class DetectSemanticChanges : DefaultTask() {
 
     @get:Input
     val projectName = project.objects.property(String::class.java)
+
+    private val semanticVersioningExt: SemanticGradleExtension =
+        project.extensions[ROOT_EXTENSION_NAME] as SemanticGradleExtension
 
     init {
         group = "semanticGit"
@@ -46,7 +52,7 @@ abstract class DetectSemanticChanges : DefaultTask() {
             releaseBranchNames.get(),
             projectName.get()
         )
-        buildService.get().storeDetectedChanges(changes)
+        buildService.get().storeDetectedChanges(semanticVersioningExt.projectName.get(), changes)
 
         logger.lifecycle("=================================================================================")
         logger.lifecycle("[${changes.gitCommits.size}] new commit(s) since last release")

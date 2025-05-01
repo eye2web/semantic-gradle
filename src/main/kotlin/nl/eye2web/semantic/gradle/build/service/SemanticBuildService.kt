@@ -8,6 +8,7 @@ import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.Objects
+import java.util.concurrent.ConcurrentHashMap
 
 abstract class SemanticBuildService : BuildService<SemanticBuildService.Parameters> {
 
@@ -17,18 +18,22 @@ abstract class SemanticBuildService : BuildService<SemanticBuildService.Paramete
 
     private val rootDirectory: Path = getGitRootDirectoryRecursively(parameters.getProjectPath().get().toPath())
 
-    private var detectedChanges: SemanticChanges? = null
+    private val detectedChanges: ConcurrentHashMap<String, SemanticChanges> = ConcurrentHashMap()
 
     fun getGitRootDirectory(): Path {
         return rootDirectory
     }
 
-    fun storeDetectedChanges(detectedChanges: SemanticChanges) {
-        this.detectedChanges = detectedChanges
+    fun storeDetectedChanges(name: String, detectedChanges: SemanticChanges) {
+        if (this.detectedChanges.contains(name)) {
+            this.detectedChanges.replace(name, detectedChanges)
+        } else {
+            this.detectedChanges.put(name, detectedChanges)
+        }
     }
 
-    fun getDetectedChanges(): SemanticChanges? {
-        return detectedChanges
+    fun getDetectedChanges(name: String): SemanticChanges? {
+        return detectedChanges.get(name) ?: throw Exception("No changes detected for project [$name]")
     }
 
     private fun getGitRootDirectoryRecursively(path: Path): Path {

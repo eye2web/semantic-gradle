@@ -21,12 +21,12 @@ data class SemanticChanges(val previousVersion: ReleaseVersion, val gitCommits: 
 
         relatedCategories.find { it.increment == Increment.MINOR }
             ?.let {
-                return previousVersion.incrementMajor()
+                return previousVersion.incrementMinor()
             }
 
         relatedCategories.find { it.increment == Increment.PATCH }
             ?.let {
-                return previousVersion.incrementMajor()
+                return previousVersion.incrementPatch()
             }
 
         return previousVersion
